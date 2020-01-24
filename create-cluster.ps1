@@ -140,7 +140,7 @@ $parameters += @{ Key="CoreSize"; Value=$coreNodeSize }
 $parameters += @{ Key="CoreVolumeSize"; Value=$coreVolumeSize }
 $parameters += @{ Key="BidPercentage"; Value=$bidPercentage }
 
-$config = Get-Content ./platform-calculation-cluster.template -Raw | ConvertFrom-Json
+$config = Get-Content ./cluster.template -Raw | ConvertFrom-Json
 
 function SetConfigProps([string]$ini, [string]$classification) {
     $iniConfig = IniProperties $ini -IgnoreInexistent
