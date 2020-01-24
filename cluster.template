@@ -1,0 +1,381 @@
+{
+    "Conditions": {
+        "UseSpotMarket": {
+            "Fn::Not": [
+                {
+                    "Fn::Equals": [
+                        {
+                            "Ref": "BidPercentage"
+                        },
+                        "0"
+                    ]
+                }
+            ]
+        },
+        "FallbackToOnDemand": {
+            "Fn::Equals": [
+                {
+                    "Ref": "BidTerminate"
+                },
+                "false"
+            ]
+        }
+    },
+    "Parameters": {
+        "Uniq": {
+            "Description": "Region-scoped unique deployment identifier (you could pass Epoch time seconds here)",
+            "Type": "String"
+        },
+        "ClusterVersion": {
+            "Description": "EMR Release",
+            "Default": "emr-5.23.0",
+            "Type": "String"
+        },
+        "ClusterName": {
+            "Description": "Cluster name (lowercase, words separated by dashes)",
+            "Default": "one-ring-calculation",
+            "Type": "String"
+        },
+        "LogS3Bucket": {
+            "Description": "S3 bucket to place cluster logs",
+            "Default": "one-ring-logs",
+            "Type": "String"
+        },
+        "KeyName": {
+            "Description": "Name of an existing EC2 KeyPair to enable SSH to the instances",
+            "Type": "AWS::EC2::KeyPair::KeyName",
+            "Default": "EMR"
+        },
+        "Subnet": {
+            "Description": "Subnet ID for creating the EMR cluster",
+            "Type": "AWS::EC2::Subnet::Id",
+            "Default": "subnet-"
+        },
+        "MasterSG": {
+            "Description": "The ID of an EC2 security group (managed by Amazon EMR) that is assigned to the master instance",
+            "Type": "AWS::EC2::SecurityGroup::Id",
+            "Default": "sg-"
+        },
+        "SlaveSG": {
+            "Description": "The ID of an EC2 security group (managed by Amazon EMR) that is assigned to the slave instances",
+            "Type": "AWS::EC2::SecurityGroup::Id",
+            "Default": "sg-"
+        },
+        "MasterSize": {
+            "Description": "An EC2 instance type for the master instance. For constraints, see InstanceTypeConfig in the Amazon EMR API Reference",
+            "Type": "String",
+            "Default": "m1.large"
+        },
+        "MasterVolumeSize": {
+            "Description": "Size of EBS volume of master instance in GiB. Default is 32",
+            "Type": "Number",
+            "Default": 32,
+            "MinValue": 1,
+            "MaxValue": 16384
+        },
+        "CoreCpuSize": {
+            "Description": "Count of CPUs per EC2 instance in the Core Fleet. For the constraints, see Instance Size in the Amazon EC2 Instance Types",
+            "Type": "Number",
+            "Default": 16,
+            "MinValue": 1,
+            "MaxValue": 16384
+        },
+        "CoreSize": {
+            "Description": "An EC2 instance type for the slave instances. For constraints, see InstanceTypeConfig in the Amazon EMR API Reference",
+            "Type": "String",
+            "Default": "i2.xlarge"
+        },
+        "CoreVolumeSize": {
+            "Description": "Size of EBS volume of core instances in GiB. Default is 32",
+            "Type": "Number",
+            "Default": 32,
+            "MinValue": 1,
+            "MaxValue": 16384
+        },
+        "BidPercentage": {
+            "Description": "Bid price percentage for slave instances. For ON_DEMAND market, use 0 here; by default, 20",
+            "Default": 20,
+            "Type": "Number",
+            "MinValue": 0,
+            "MaxValue": 100
+        },
+        "BidTimeout": {
+            "Description": "Bidding timeout in minutes. By default, 20 minutes",
+            "Default": 20,
+            "Type": "Number",
+            "MinValue": 5,
+            "MaxValue": 1440
+        },
+        "BidTerminate": {
+            "Description": "Terminate if bidding fails. By default, switch to on demand market",
+            "AllowedValues": [
+                "false",
+                "true"
+            ],
+            "Type": "String",
+            "Default": "false"
+        },
+        "Capacity": {
+            "Description": "Cluster capacity in slave instance fleet units",
+            "Type": "Number",
+            "Default": 3
+        },
+        "EmrfsTable": {
+            "Description": "Table name for EMRFS consistent view metadata",
+            "Type": "String"
+        },
+        "WorkloadType": {
+            "Description": "Workload type (e.g. project identifier), that is used to differentiate projects in billing dashboard",
+            "Type": "String",
+            "Default": "one-ring"
+        }
+    },
+    "Resources": {
+        "PlatformCalculationCluster": {
+            "Type": "AWS::EMR::Cluster",
+            "Properties": {
+                "JobFlowRole": "EMR_EC2_DefaultRole",
+                "ServiceRole": "EMR_DefaultRole",
+                "LogUri": {
+                    "Fn::Join": [
+                        "/",
+                        [
+                            "s3:/",
+                            {
+                                "Ref": "LogS3Bucket"
+                            },
+                            "logs",
+                            {
+                                "Ref": "ClusterName"
+                            },
+                            {
+                                "Ref": "Uniq"
+                            }
+                        ]
+                    ]
+                },
+                "Name": {
+                    "Fn::Join": [
+                        "-",
+                        [
+                            {
+                                "Ref": "ClusterName"
+                            },
+                            {
+                                "Ref": "Uniq"
+                            }
+                        ]
+                    ]
+                },
+                "ReleaseLabel": {
+                    "Ref": "ClusterVersion"
+                },
+                "Applications": [
+                    {
+                        "Name": "Spark"
+                    },
+                    {
+                        "Name": "Livy"
+                    },
+                    {
+                        "Name": "Hadoop"
+                    }
+                ],
+                "Instances": {
+                    "CoreInstanceFleet": {
+                        "Name": "CoreFleet",
+                        "TargetSpotCapacity": {
+                            "Fn::If": [
+                                "UseSpotMarket",
+                                {
+                                    "Ref": "Capacity"
+                                },
+                                {
+                                    "Ref": "AWS::NoValue"
+                                }
+                            ]
+                        },
+                        "TargetOnDemandCapacity": {
+                            "Fn::If": [
+                                "UseSpotMarket",
+                                {
+                                    "Ref": "AWS::NoValue"
+                                },
+                                {
+                                    "Ref": "Capacity"
+                                }
+                            ]
+                        },
+                        "LaunchSpecifications": {
+                            "Fn::If": [
+                                "UseSpotMarket",
+                                {
+                                    "SpotSpecification": {
+                                        "TimeoutDurationMinutes": {
+                                            "Ref": "BidTimeout"
+                                        },
+                                        "TimeoutAction": {
+                                            "Fn::If": [
+                                                "FallbackToOnDemand",
+                                                "SWITCH_TO_ON_DEMAND",
+                                                "TERMINATE_CLUSTER"
+                                            ]
+                                        }
+                                    }
+                                },
+                                {
+                                    "Ref": "AWS::NoValue"
+                                }
+                            ]
+                        },
+                        "InstanceTypeConfigs": [
+                            {
+                                "WeightedCapacity": {
+                                    "Ref": "CoreCpuSize"
+                                },
+                                "InstanceType": {
+                                    "Ref": "CoreSize"
+                                },
+                                "BidPriceAsPercentageOfOnDemandPrice": {
+                                    "Fn::If": [
+                                        "UseSpotMarket",
+                                        {
+                                            "Ref": "BidPercentage"
+                                        },
+                                        {
+                                            "Ref": "AWS::NoValue"
+                                        }
+                                    ]
+                                },
+                                "EbsConfiguration": {
+                                    "EbsBlockDeviceConfigs": [
+                                        {
+                                            "VolumeSpecification": {
+                                                "SizeInGB": {
+                                                    "Ref": "CoreVolumeSize"
+                                                },
+                                                "VolumeType": "gp2"
+                                            },
+                                            "VolumesPerInstance": 1
+                                        }
+                                    ],
+                                    "EbsOptimized": "True"
+                                }
+                            }
+                        ]
+                    },
+                    "MasterInstanceFleet": {
+                        "Name": "MasterFleet",
+                        "TargetOnDemandCapacity": 1,
+                        "InstanceTypeConfigs": [
+                            {
+                                "InstanceType": {
+                                    "Ref": "MasterSize"
+                                },
+                                "EbsConfiguration": {
+                                    "EbsBlockDeviceConfigs": [
+                                        {
+                                            "VolumeSpecification": {
+                                                "SizeInGB": {
+                                                    "Ref": "MasterVolumeSize"
+                                                },
+                                                "VolumeType": "gp2"
+                                            },
+                                            "VolumesPerInstance": 1
+                                        }
+                                    ],
+                                    "EbsOptimized": "True"
+                                }
+                            }
+                        ]
+                    },
+                    "TerminationProtected": "False",
+                    "Ec2SubnetId": {
+                        "Ref": "Subnet"
+                    },
+                    "Ec2KeyName": {
+                        "Ref": "KeyName"
+                    },
+                    "EmrManagedMasterSecurityGroup": {
+                        "Ref": "MasterSG"
+                    },
+                    "EmrManagedSlaveSecurityGroup": {
+                        "Ref": "SlaveSG"
+                    }
+                },
+                "VisibleToAllUsers": true,
+                "Configurations": [
+                    {
+                        "Classification": "emrfs-site",
+                        "ConfigurationProperties": {
+                            "fs.s3.consistent.retryPeriodSeconds": "10",
+                            "fs.s3.consistent": "true",
+                            "fs.s3.consistent.retryCount": "5",
+                            "fs.s3.consistent.metadata.tableName": {
+                                "Ref": "EmrfsTable"
+                            }
+                        }
+                    },
+                    {
+                        "Classification": "livy-conf",
+                        "ConfigurationProperties": {
+                            "livy.spark.master": "yarn-cluster",
+                            "livy.spark.deployMode": "cluster"
+                        }
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "workload-type",
+                        "Value": {
+                            "Ref" : "WorkloadType"
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    "Outputs": {
+        "ClusterID": {
+            "Description": "Resulting cluster ID",
+            "Value": {
+                "Ref": "PlatformCalculationCluster"
+            },
+            "Export": {
+                "Name": {
+                    "Fn::Join": [
+                        "-",
+                        [
+                            "ClusterID",
+                            {
+                                "Ref": "Uniq"
+                            }
+                        ]
+                    ]
+                }
+            }
+        },
+        "MasterDNSName": {
+            "Description": "Resulting DNS name of cluster's master node instance",
+            "Value": {
+                "Fn::GetAtt": [
+                    "PlatformCalculationCluster",
+                    "MasterPublicDNS"
+                ]
+            },
+            "Export": {
+                "Name": {
+                    "Fn::Join": [
+                        "-",
+                        [
+                            "MasterDNSName",
+                            {
+                                "Ref": "Uniq"
+                            }
+                        ]
+                    ]
+                }
+            }
+        }
+    }
+}
