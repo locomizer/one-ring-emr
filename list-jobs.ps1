@@ -1,12 +1,12 @@
 param(
-    [Parameter(Position=1)]
+    [Parameter(Position = 1)]
     [string]$azureIni = './settings/aws.ini',
-    [Parameter(Position=2)]
+    [Parameter(Position = 2)]
     [string]$iniFile = './settings/run.ini',
 
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string]$clusterId,
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string]$clusterUri,
     [switch]$waitFor = $false
 )

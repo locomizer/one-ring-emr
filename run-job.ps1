@@ -1,10 +1,10 @@
 param(
-    [Parameter(Position=1)]
+    [Parameter(Position = 1)]
     [string]$awsIni = './settings/aws.ini',
-    [Parameter(Position=2)]
+    [Parameter(Position = 2)]
     [string]$iniFile = './settings/run.ini',
-    [Parameter(Position=3)]
-    [string]$tasksIni = './settings/tasks.ini',
+    [Parameter(Position = 3, Mandatory = $true)][ValidateNotNullOrEmpty()]
+    [string]$tasksFile,
     [switch]$autoConfirm = $false,
 
     [switch]$wrapperStore = $false,
@@ -40,7 +40,7 @@ foreach ($task in $tasks) {
         exit 1
     }
 
-    $jarFile = ReadProperty "$task.artifact" -Prompt "Enter .jar artifact name for task, or path to .jar, or path to python script"
+    $jarFile = ReadProperty "$task.artifact" -Prompt "Enter .jar artifact name for task, or path to .jar"
 
     if (-not(Test-Path $jarFile)) {
         "Inexistent artifact '$jarFile'. Exiting"
@@ -48,30 +48,28 @@ foreach ($task in $tasks) {
     }
     $job['Artifact'] = $jarFile
 
-    if ($jarFile -like '*.jar') {
-        $className = ReadProperty "$task.class.name" -Prompt "Enter main class name for .jar artifact"
-        if ($className -eq '') {
-            "Jobs with .jar artifact require main class name. Exiting"
-            exit 1
-        }
-        $job['ClassName'] = $className
+    $className = ReadProperty "$task.class.name" -Prompt "Enter main class name for .jar artifact"
+    if ($className -eq '') {
+        "Jobs with .jar artifact require main class name. Exiting"
+        exit 1
+    }
+    $job['ClassName'] = $className
 
-        $libs = ReadProperty "$task.libs" -Prompt "Enter path to additional libraries" -Optional
-        if ($null -ne $libs) {
-            $libs = $libs.Split(',').Trim()
+    $libs = ReadProperty "$task.libs" -Prompt "Enter path to additional libraries" -Optional
+    if ($null -ne $libs) {
+        $libs = $libs.Split(',').Trim()
 
-            $libJars = @()
-            foreach ($libJar in $libs) {
-                if (-not(Test-Path $libJar)) {
-                    "Inexistent library '$libJar'. Exiting"
-                    exit 1
-                }
-
-                $libJars += $libJar
+        $libJars = @()
+        foreach ($libJar in $libs) {
+            if (-not(Test-Path $libJar)) {
+                "Inexistent library '$libJar'. Exiting"
+                exit 1
             }
 
-            $job['Libs'] = $libJars
+            $libJars += $libJar
         }
+
+        $job['Libs'] = $libJars
     }
 
     $arguments = ReadProperty "$task.arguments" -Prompt "Enter task command line arguments, as a comma-separated list" -Optional
@@ -79,14 +77,16 @@ foreach ($task in $tasks) {
         $arguments = $arguments.Split(',').Trim()
 
         $job['Arguments'] = $arguments
-    } else {
+    }
+    else {
         $job['Arguments'] = @()
     }
 
-    $job['Arguments'] += '--task', $task
-
     if ($wrapperStore) {
-        $job['Arguments'] += '-S', "s3://$Script:clusterBucket/artifacts/$Script:clusterId"
+        $job['WrapperStore'] = "s3://$Script:clusterBucket/artifacts/$Script:clusterId"
+    }
+    else {
+        $job['WrapperStore'] = ''
     }
 
     $jobs += $job
@@ -112,14 +112,12 @@ function DownloadFile([string]$bucket, [string]$remotePath, [string]$localPath) 
 
 . ./common/local.ps1
 
-$taskProperties = IniProperties $tasksIni -IgnoreInexistent
-
 foreach ($job in $jobs) {
     $name = $job.Name
 
     "Preparing to run a Job for task $name"
 
-    $splatConfig = @{}
+    $splatConfig = @{ }
 
     "Copying Job files"
 
@@ -138,7 +136,10 @@ foreach ($job in $jobs) {
 
     if ($null -ne $job['Arguments']) {
         $splatConfig['Arguments'] = $job['Arguments']. `
-            Replace('%params%', $params)
+            Replace('%params%', $params). `
+            Replace('%tasksFile%', $tasksFile). `
+            Replace('%task%', $job['Name']). `
+            Replace('%wrapperStore%', $job['WrapperStore'])
     }
 
     $yes = ReadProperty 'yes' -Prompt "Ready to go. Say 'yes' to proceed"
@@ -149,10 +150,11 @@ foreach ($job in $jobs) {
 
     "Validating the Job '$($job.Name)'"
 
-    $distcp = CallDistWrapper 'to' $name $params $tasksIni
+    $distcp = CallDistWrapper 'to' $name $params $tasksFile
     if ($distcp -eq 'yes') {
         CallDistCp $clusterId
-    } else {
+    }
+    else {
         "Task configuration validation failed. Exiting."
         exit 1
     }
@@ -163,21 +165,11 @@ foreach ($job in $jobs) {
         'file' = $splatConfig.JarFile
         'name' = $name
     }
-    if ($splatConfig.JarFile -like '*.jar') {
-        $def['className'] = $job.ClassName
-    }
+    $def['className'] = $job.ClassName
     if ($null -ne $splatConfig.LibJars) {
         $def['jars'] = $splatConfig.LibJars
     }
     $def['args'] = $splatConfig.Arguments
-
-    $list = @{}
-    foreach ($kvp in $taskProperties.getEnumerator()) {
-        if ($kvp.Name -like "$name.*") {
-            $list[$kvp.Name] = $kvp.Value
-        }
-    }
-    $def['conf'] = $list
 
     $body = ($def | ConvertTo-Json)
 
@@ -192,15 +184,17 @@ foreach ($job in $jobs) {
 
     if ($wrapperStore) {
         DownloadFile "$Script:clusterBucket" "artifacts/$Script:clusterId/outputs/part-00000" "./settings/outputs"
-        $distcp = CallDistWrapper 'from' $name $params $tasksIni './settings/outputs'
-    } else {
-        $distcp = CallDistWrapper 'from' $name $params $tasksIni
+        $distcp = CallDistWrapper 'from' $name $params $tasksFile './settings/outputs'
+    }
+    else {
+        $distcp = CallDistWrapper 'from' $name $params $tasksFile
     }
 
     if ($distcp -eq 'yes') {
         "Copying task result"
         CallDistCp $clusterId
-    } else {
+    }
+    else {
         "Task result copying failed. Exiting."
         exit 1
     }

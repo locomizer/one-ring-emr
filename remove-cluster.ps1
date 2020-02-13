@@ -1,10 +1,10 @@
 param(
-    [Parameter(Position=1)]
+    [Parameter(Position = 1)]
     [string]$awsIni = './settings/aws.ini',
-    [Parameter(Position=2)]
+    [Parameter(Position = 2)]
     [string]$iniFile = './settings/remove.ini',
 
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string]$uniq,
     [switch]$autoConfirm = $false
 )

@@ -9,6 +9,6 @@ if ($preset -match '^(S|M|L|XL)$') {
     $presetProperties = IniProperties "./presets/$preset.ini"
 
     $presetProperties.Keys | % {
-"##teamcity[setParameter name='$_' value='$($presetProperties.Item($_))']"
+        "##teamcity[setParameter name='$_' value='$($presetProperties.Item($_))']"
     }
 }

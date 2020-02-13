@@ -13,7 +13,7 @@ if ($iniFile -ne '') {
 }
 $JAVA_EXE = ($JAVA_EXE, 'java' -ne $null)[0]
 
-function CallDistWrapper([string]$direction, [string]$task, [string]$params, [string]$tasksIni, [string]$storePath = '') {
+function CallDistWrapper([string]$direction, [string]$task, [string]$params, [string]$tasksFile, [string]$storePath = '') {
     Remove-Item -Path './settings/distcp.ini' -ErrorAction Ignore
 
     $pinfo = New-Object System.Diagnostics.ProcessStartInfo
@@ -22,7 +22,7 @@ function CallDistWrapper([string]$direction, [string]$task, [string]$params, [st
     $pinfo.RedirectStandardOutput = $true
     $pinfo.UseShellExecute = $false
     $pinfo.WorkingDirectory = (Resolve-Path -Path './').Path
-    $pinfo.Arguments = "-jar ./one-ring-dist.jar --config $tasksIni --output ./settings/distcp.ini --direction $direction --task $task -V $params"
+    $pinfo.Arguments = "-jar ./one-ring-dist.jar --config $tasksFile --output ./settings/distcp.ini --direction $direction --task $task -V $params"
     if ('' -ne $storePath) {
         $pinfo.Arguments += " -S $storePath"
     }

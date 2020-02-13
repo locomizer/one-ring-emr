@@ -1,7 +1,7 @@
 param(
-    [Parameter(Position=1)]
+    [Parameter(Position = 1)]
     [string]$awsIni = './settings/aws.ini',
-    [Parameter(Position=2)]
+    [Parameter(Position = 2)]
     [string]$iniFile = './settings/create.ini',
     [switch]$autoConfirm = $false,
 
@@ -81,12 +81,12 @@ if ($clusterBucket -notin $buckets.BucketName) {
 }
 
 $parameters = @( `
-    @{ Key="ClusterName"; Value=$clusterName }, `
-    @{ Key="KeyName"; Value=$keypair }, `
-    @{ Key="LogS3Bucket"; Value=$clusterBucket }, `
-    @{ Key="Subnet"; Value=$subnet }, `
-    @{ Key="MasterSG"; Value=$masterSG }, `
-    @{ Key="SlaveSG"; Value=$slaveSG } `
+    @{ Key = "ClusterName"; Value = $clusterName }, `
+    @{ Key = "KeyName"; Value = $keypair }, `
+    @{ Key = "LogS3Bucket"; Value = $clusterBucket }, `
+    @{ Key = "Subnet"; Value = $subnet }, `
+    @{ Key = "MasterSG"; Value = $masterSG }, `
+    @{ Key = "SlaveSG"; Value = $slaveSG } `
 )
 
 "Cluster Nodes configuration"
@@ -121,24 +121,25 @@ if ($bidPercentage -ne "0") {
     $bidTerminate = ReadProperty 'bid.terminate' -Prompt "Please choose if you wand to terminate cluster if SPOT bidding fails. By default, false which means switch to ON_DEMAND" -Optional
     if ($null -eq $bidTerminate) {
         $bidTerminate = "false"
-    } elseif ($bidTerminate -ne "false") {
+    }
+    elseif ($bidTerminate -ne "false") {
         $bidTerminate = "true"
     }
 
-    $parameters += @{ Key="BidTimeout"; Value=$bidTimeout }
-    $parameters += @{ Key="BidTerminate"; Value=$bidTerminate }
+    $parameters += @{ Key = "BidTimeout"; Value = $bidTimeout }
+    $parameters += @{ Key = "BidTerminate"; Value = $bidTerminate }
 }
 
 $coresPerCluster = ([convert]::ToInt32($clusterSizeInNodes, 10)) * ([convert]::ToInt32($clusterCpuCountPerNode, 10))
 
-$parameters += @{ Key="ClusterVersion"; Value=$clusterVersion }
-$parameters += @{ Key="Capacity"; Value=$coresPerCluster}
-$parameters += @{ Key="CoreCpuSize"; Value=$clusterCpuCountPerNode }
-$parameters += @{ Key="MasterSize"; Value=$masterNodeSize }
-$parameters += @{ Key="MasterVolumeSize"; Value=$masterVolumeSize }
-$parameters += @{ Key="CoreSize"; Value=$coreNodeSize }
-$parameters += @{ Key="CoreVolumeSize"; Value=$coreVolumeSize }
-$parameters += @{ Key="BidPercentage"; Value=$bidPercentage }
+$parameters += @{ Key = "ClusterVersion"; Value = $clusterVersion }
+$parameters += @{ Key = "Capacity"; Value = $coresPerCluster }
+$parameters += @{ Key = "CoreCpuSize"; Value = $clusterCpuCountPerNode }
+$parameters += @{ Key = "MasterSize"; Value = $masterNodeSize }
+$parameters += @{ Key = "MasterVolumeSize"; Value = $masterVolumeSize }
+$parameters += @{ Key = "CoreSize"; Value = $coreNodeSize }
+$parameters += @{ Key = "CoreVolumeSize"; Value = $coreVolumeSize }
+$parameters += @{ Key = "BidPercentage"; Value = $bidPercentage }
 
 $config = Get-Content ./cluster.template -Raw | ConvertFrom-Json
 
@@ -146,8 +147,8 @@ function SetConfigProps([string]$ini, [string]$classification) {
     $iniConfig = IniProperties $ini -IgnoreInexistent
     if ($iniConfig.Count -gt 0) {
         $Script:config.Resources.PlatformCalculationCluster.Properties.Configurations += @{
-            Classification=$classification
-            ConfigurationProperties=$iniConfig
+            Classification          = $classification
+            ConfigurationProperties = $iniConfig
         }
     }
 }
@@ -166,15 +167,15 @@ if ($null -eq $uniq) {
     $uniq = [DateTimeOffset]::Now.ToUnixTimeSeconds()
 }
 
-$parameters += @{ Key="Uniq"; Value=$uniq }
+$parameters += @{ Key = "Uniq"; Value = $uniq }
 
 $ddbTableName = ReadProperty 'emrfs.table.name' -Prompt "DynamoDB table for EMR S3 file system connector" -Optional
 if ($null -eq $ddbTableName) {
     $ddbTableName = "EmrfsMetadata$uniq"
 }
-$parameters += @{ Key="EmrfsTable"; Value=$ddbTableName }
+$parameters += @{ Key = "EmrfsTable"; Value = $ddbTableName }
 
-$parameters += @{ Key="WorkloadType"; Value=$workloadType }
+$parameters += @{ Key = "WorkloadType"; Value = $workloadType }
 
 $parameters
 
