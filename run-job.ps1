@@ -148,9 +148,22 @@ foreach ($job in $jobs) {
         exit 1
     }
 
-    "Validating the Job '$($job.Name)'"
+    "Configuring the Job '$($job.Name)'"
 
-    $distcp = CallDistWrapper 'to' $name $params $tasksFile
+    $distTasksFile = $tasksFile
+    if ($tasksFile.StartsWith('s3:')) {
+        $json = $tasksFile.EndsWith('json')
+        if ($json) {
+            $distTasksFile = "./settings/tasks.json"
+        } else {
+            $distTasksFile = "./settings/tasks.ini"
+        }
+
+        $tasksFilePath = $tasksFile -split '/+',3
+        DownloadFile "$($tasksFilePath[1])" "$($tasksFilePath[2])" "$distTasksFile"
+    }
+
+    $distcp = CallDistWrapper 'to' $name $params $distTasksFile
     if ($distcp -eq 'yes') {
         CallDistCp $clusterId
     }
@@ -184,10 +197,10 @@ foreach ($job in $jobs) {
 
     if ($wrapperStore) {
         DownloadFile "$Script:clusterBucket" "artifacts/$Script:clusterId/outputs/part-00000" "./settings/outputs"
-        $distcp = CallDistWrapper 'from' $name $params $tasksFile './settings/outputs'
+        $distcp = CallDistWrapper 'from' $name $params $distTasksFile './settings/outputs'
     }
     else {
-        $distcp = CallDistWrapper 'from' $name $params $tasksFile
+        $distcp = CallDistWrapper 'from' $name $params $distTasksFile
     }
 
     if ($distcp -eq 'yes') {
