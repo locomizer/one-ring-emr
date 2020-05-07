@@ -23,6 +23,8 @@ $buildParams = (Invoke-RestMethod `
         -ContentType 'application/json' `
         -Uri "$tcAddress/httpAuth/app/rest/builds/id:$tcBuild/resulting-properties").properties.property | Where-Object { $_.name -like '*.ini.*' }
 
+$buildParams
+
 foreach ($ini in $inis) {
     $iniContent = IniProperties "$iniLocation/$ini"
 

@@ -30,11 +30,10 @@ if ($location -notin $region.Region) {
 
 Set-DefaultAWSRegion -Region $location
 
-$clusterName = ReadProperty 'cluster.name' -Prompt "Now enter the name of the EMR cluster"
-
-$workloadType = ReadProperty 'workload.type' -Prompt "If this cluster belongs to a separately billed workload, enter its identifier" -Optional
-if ($null -eq $workloadType) {
-    $workloadType = $clusterName
+$clusterName = ReadProperty 'cluster.name' -Prompt "Now enter the name of the EMR cluster" -Optional
+$workloadType = ReadProperty 'workload.type' -Prompt "If this cluster belongs to a separately billed workload, enter its identifier"
+if ($null -eq $clusterName) {
+    $clusterName = $workloadType
 }
 
 $keypairs = Get-EC2KeyPair
