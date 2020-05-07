@@ -38,7 +38,7 @@ $inis = Get-ChildItem $iniLocation -Name '*.ini'
 foreach ($ini in $inis) {
     $iniContent = IniProperties "$iniLocation/$ini"
 
-    $presetParams | Where-Object { $_.name -like "$ini.*" } | ForEach-Object { $_.name -match "$ini\.(?<param>.+)" ; $iniContent[$Matches['param']] = $_.value }
+    $presetParams.Keys | ForEach-Object { $key = $_; if ($key -match "$ini\.(?<param>.+)") { $iniContent[$Matches['param']] = $presetParams.Item($key) } }
 
     $iniContent.Keys | ForEach-Object { "$_=$($iniContent[$_])" } > "$iniLocation/$ini"
 }
