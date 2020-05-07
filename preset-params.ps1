@@ -31,6 +31,8 @@ $buildParams = (Invoke-RestMethod `
 
 $buildParams | ForEach-Object { $presetParams[$_.name] = $_.value }
 
+$presetParams
+
 $inis = Get-ChildItem $iniLocation -Name '*.ini'
 
 foreach ($ini in $inis) {
