@@ -18,8 +18,9 @@ param(
 $auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $tcUser, $tcPwd)))
 
 $presetParams = @{}
-if ($preset -match '^(S|M|L|XL)$') {
-    $presetParams = IniProperties "./presets/$preset.ini"
+$presetPath = "./presets/$preset.ini"
+if (Test-Path $presetPath -PathType Leaf) {
+    $presetParams = IniProperties $presetPath
 }
 
 $buildParams = (Invoke-RestMethod `
