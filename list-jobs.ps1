@@ -13,18 +13,12 @@ param(
 
 . ./common/functions.ps1 $awsIni $iniFile
 
-
 . ./common/jobs.ps1
 
 "Spark Jobs:"
 $sparkJobs = CallLivy $clusterUri
 $sparkJobs | Format-Table
 
-"Other Hadoop Jobs:"
-$jobs = Get-EMRSteps -ClusterId $clusterId -ErrorAction Stop
-$jobs | Format-Table
-
 if ($waitFor) {
     WaitForSpark $clusterId $clusterUri 0
-    WaitForMR $clusterId 0
 }

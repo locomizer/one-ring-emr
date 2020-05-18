@@ -104,15 +104,6 @@ function WaitForMR([string]$clusterId, [int]$tOut = 120) {
     } while ($wait)
 }
 
-function CallDistCp([string]$clusterId) {
-    if (Test-Path -Path './settings/distcp.ini' -PathType Leaf) {
-        $lines = Get-Content -Path './settings/distcp.ini'
-
-        foreach ($line in $lines) {
-            CallCommandRunner $clusterId $line 'DistCp'
-        }
-    }
-}
 
 function CallCommandRunner([string]$clusterId, [string]$commandLine, [string]$name, [int]$tOut = 120) {
     $stepConfig = New-Object `

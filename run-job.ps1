@@ -5,12 +5,14 @@ param(
     [string]$iniFile = './settings/run.ini',
     [Parameter(Position = 3, Mandatory = $true)][ValidateNotNullOrEmpty()]
     [string]$tasksFile,
+    [string]$tasksPrefix = 'spark.meta',
+    [string]$paramsFile,
+    [string]$params = 'YT1h', #a=a
     [switch]$autoConfirm = $false,
-
-    [switch]$wrapperStore = $false,
+    [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()]
     [string]$clusterUri,
-    [string]$clusterId,
-    [string]$params = 'YT1h' #a=a
+    [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()]
+    [string]$clusterId
 )
 
 "Running job sequence on AWS EMR Cluster"
@@ -24,6 +26,7 @@ $clusterBucket = ReadProperty "cluster.s3.bucket" -Prompt "Enter S3 bucket name 
 $bucket = Get-S3Bucket -BucketName $clusterBucket -ErrorAction SilentlyContinue
 if (-not($bucket)) {
     "Inexistent bucket. Exiting"
+
     exit 1
 }
 
@@ -35,15 +38,10 @@ foreach ($task in $tasks) {
         'Name' = $task
     }
 
-    if (-not $clusterUri) {
-        "No Cluster master node URI was specified as this script -clusterUri parameter. Exiting"
-        exit 1
-    }
-
     $jarFile = ReadProperty "$task.artifact" -Prompt "Enter .jar artifact name for task, or path to .jar"
-
     if (-not(Test-Path $jarFile)) {
         "Inexistent artifact '$jarFile'. Exiting"
+
         exit 1
     }
     $job['Artifact'] = $jarFile
@@ -51,6 +49,7 @@ foreach ($task in $tasks) {
     $className = ReadProperty "$task.class.name" -Prompt "Enter main class name for .jar artifact"
     if ($className -eq '') {
         "Jobs with .jar artifact require main class name. Exiting"
+
         exit 1
     }
     $job['ClassName'] = $className
@@ -63,6 +62,7 @@ foreach ($task in $tasks) {
         foreach ($libJar in $libs) {
             if (-not(Test-Path $libJar)) {
                 "Inexistent library '$libJar'. Exiting"
+
                 exit 1
             }
 
@@ -82,12 +82,7 @@ foreach ($task in $tasks) {
         $job['Arguments'] = @()
     }
 
-    if ($wrapperStore) {
-        $job['WrapperStore'] = "s3://$Script:clusterBucket/artifacts/$Script:clusterId"
-    }
-    else {
-        $job['WrapperStore'] = ''
-    }
+    $job['WrapperStore'] = "s3://$Script:clusterBucket/artifacts/$Script:clusterId"
 
     $jobs += $job
 }
@@ -102,24 +97,15 @@ function TransferFile([string]$localFile) {
     return "s3://$Script:clusterBucket/artifacts/$Script:clusterId/$bareName"
 }
 
-function DownloadFile([string]$bucket, [string]$remotePath, [string]$localPath) {
-    Copy-S3Object -BucketName $bucket `
-        -Key $remotePath `
-        -LocalFile $localPath
-}
 
 . ./common/jobs.ps1
 
 . ./common/local.ps1
 
 foreach ($job in $jobs) {
-    $name = $job.Name
-
-    "Preparing to run a Job for task $name"
+    "Preparing to run a Job for task '$($job.Name)'"
 
     $splatConfig = @{ }
-
-    "Copying Job files"
 
     if ($null -ne $job['Artifact']) {
         $splatConfig['JarFile'] = TransferFile $job['Artifact']
@@ -134,45 +120,22 @@ foreach ($job in $jobs) {
         $splatConfig['LibJars'] = $libJars
     }
 
+    "Configuring the Job"
+
     if ($null -ne $job['Arguments']) {
         $splatConfig['Arguments'] = $job['Arguments']. `
-            Replace('%params%', $params). `
             Replace('%tasksFile%', $tasksFile). `
-            Replace('%task%', $job['Name']). `
+            Replace('%prefix%', $tasksPrefix). `
             Replace('%wrapperStore%', $job['WrapperStore'])
-    }
-
-    $yes = ReadProperty 'yes' -Prompt "Ready to go. Say 'yes' to proceed"
-    if ($yes -ne 'yes') {
-        "You decided not to proceed. Exiting."
-        exit 1
-    }
-
-    "Configuring the Job '$($job.Name)'"
-
-    $distTasksFile = $tasksFile
-    if ($tasksFile.StartsWith('s3:')) {
-        $json = $tasksFile.EndsWith('json')
-        if ($json) {
-            $distTasksFile = "./settings/tasks.json"
-        } else {
-            $distTasksFile = "./settings/tasks.ini"
+        if ($null -ne $params) {
+            $splatConfig['Arguments'] = $splatConfig['Arguments']. `
+                Replace('%params%', $params)
         }
-
-        $tasksFilePath = $tasksFile -split '/+',3
-        DownloadFile "$($tasksFilePath[1])" "$($tasksFilePath[2])" "$distTasksFile"
+        elseif ($null -ne $paramsFile) {
+            $splatConfig['Arguments'] = $splatConfig['Arguments']. `
+                Replace('%paramsFile%', $paramsFile)
+        }
     }
-
-    $distcp = CallDistWrapper 'to' $name $params $distTasksFile
-    if ($distcp -eq 'yes') {
-        CallDistCp $clusterId
-    }
-    else {
-        "Task configuration validation failed. Exiting."
-        exit 1
-    }
-
-    "Starting the Job '$name'"
 
     $def = @{
         'file' = $splatConfig.JarFile
@@ -186,31 +149,25 @@ foreach ($job in $jobs) {
 
     $body = ($def | ConvertTo-Json)
 
+    $body
+
+    $yes = ReadProperty 'yes' -Prompt "Ready to go. Say 'yes' to proceed"
+    if ($yes -ne 'yes') {
+        "You decided not to proceed. Exiting."
+        exit 1
+    }
+
+    "Starting the Job"
+
     Invoke-RestMethod `
         -Method Post `
         -Body "$body" `
         -ContentType 'application/json' `
         -Uri "http://$($clusterUri):8998/batches"
 
-    "Waiting for Job '$name' completion"
+    "Waiting for Job completion"
+
     WaitForSpark $clusterId $clusterUri
-
-    if ($wrapperStore) {
-        DownloadFile "$Script:clusterBucket" "artifacts/$Script:clusterId/outputs/part-00000" "./settings/outputs"
-        $distcp = CallDistWrapper 'from' $name $params $distTasksFile './settings/outputs'
-    }
-    else {
-        $distcp = CallDistWrapper 'from' $name $params $distTasksFile
-    }
-
-    if ($distcp -eq 'yes') {
-        "Copying task result"
-        CallDistCp $clusterId
-    }
-    else {
-        "Task result copying failed. Exiting."
-        exit 1
-    }
 }
 
 "All done."
