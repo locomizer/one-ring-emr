@@ -102,6 +102,14 @@ function TransferFile([string]$localFile) {
 
 . ./common/local.ps1
 
+
+$decodedParams = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($params))
+$decodedParams = ConvertFrom-StringData $decodedParams
+$decodedParams.Keys | % {
+"##teamcity[setParameter name='deployment.params.$_' value='$($decodedParams.Item($_))']"
+}
+
+
 foreach ($job in $jobs) {
     "Preparing to run a Job for task '$($job.Name)'"
 
