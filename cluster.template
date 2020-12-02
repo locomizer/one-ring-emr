@@ -120,10 +120,6 @@
             "Type": "Number",
             "Default": 3
         },
-        "EmrfsTable": {
-            "Description": "Table name for EMRFS consistent view metadata",
-            "Type": "String"
-        },
         "WorkloadType": {
             "Description": "Workload type (e.g. project identifier), that is used to differentiate projects in billing dashboard",
             "Type": "String",
@@ -305,17 +301,6 @@
                 },
                 "VisibleToAllUsers": true,
                 "Configurations": [
-                    {
-                        "Classification": "emrfs-site",
-                        "ConfigurationProperties": {
-                            "fs.s3.consistent.retryPeriodSeconds": "10",
-                            "fs.s3.consistent": "true",
-                            "fs.s3.consistent.retryCount": "5",
-                            "fs.s3.consistent.metadata.tableName": {
-                                "Ref": "EmrfsTable"
-                            }
-                        }
-                    },
                     {
                         "Classification": "livy-conf",
                         "ConfigurationProperties": {

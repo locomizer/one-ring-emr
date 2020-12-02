@@ -105,7 +105,7 @@ function TransferFile([string]$localFile) {
 
 $decodedParams = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($params))
 $decodedParams = ConvertFrom-StringData $decodedParams
-$decodedParams.Keys | % {
+$decodedParams.Keys | ForEach-Object {
 "##teamcity[setParameter name='deployment.params.$_' value='$($decodedParams.Item($_))']"
 }
 

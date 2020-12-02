@@ -168,12 +168,6 @@ if ($null -eq $uniq) {
 
 $parameters += @{ Key = "Uniq"; Value = $uniq }
 
-$ddbTableName = ReadProperty 'emrfs.table.name' -Prompt "DynamoDB table for EMR S3 file system connector" -Optional
-if ($null -eq $ddbTableName) {
-    $ddbTableName = "EmrfsMetadata$uniq"
-}
-$parameters += @{ Key = "EmrfsTable"; Value = $ddbTableName }
-
 $parameters += @{ Key = "WorkloadType"; Value = $workloadType }
 
 $parameters
@@ -213,18 +207,5 @@ foreach ($export in $exports) {
 "##teamcity[setParameter name='deployment.uniq' value='$uniq']"
 "##teamcity[setParameter name='deployment.cluster.id' value='$clusterId']"
 "##teamcity[setParameter name='deployment.master.address' value='$masterAddress']"
-
-
-"Now tagging deployed entities."
-
-. ./common/jobs.ps1
-
-CallCommandRunner $clusterId "emrfs create-metadata -m $ddbTableName" "CreateEMRFSTable"
-$ddbTable = Get-DDBTable -TableName $ddbTableName
-$ddbTag = New-Object "Amazon.DynamoDBv2.Model.Tag"
-$ddbTag.Key = "workload-type"
-$ddbTag.Value = $workloadType
-Add-DDBResourceTag -ResourceArn $ddbTable.TableArn -Tag $ddbTag
-
 
 "All done."
