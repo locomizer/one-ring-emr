@@ -304,8 +304,8 @@
                     {
                         "Classification": "livy-conf",
                         "ConfigurationProperties": {
-                            "livy.spark.master": "yarn-cluster",
-                            "livy.spark.deployMode": "cluster"
+                            "livy.spark.master": "yarn",
+                            "livy.spark.deploy-mode": "cluster"
                         }
                     }
                 ],
