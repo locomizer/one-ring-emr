@@ -28,7 +28,7 @@
         },
         "ClusterVersion": {
             "Description": "EMR Release",
-            "Default": "emr-5.23.0",
+            "Default": "emr-6.1.0",
             "Type": "String"
         },
         "ClusterName": {
@@ -250,7 +250,7 @@
                                                 "SizeInGB": {
                                                     "Ref": "CoreVolumeSize"
                                                 },
-                                                "VolumeType": "gp2"
+                                                "VolumeType": "gp3"
                                             },
                                             "VolumesPerInstance": 1
                                         }
@@ -275,7 +275,7 @@
                                                 "SizeInGB": {
                                                     "Ref": "MasterVolumeSize"
                                                 },
-                                                "VolumeType": "gp2"
+                                                "VolumeType": "gp3"
                                             },
                                             "VolumesPerInstance": 1
                                         }
