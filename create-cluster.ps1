@@ -102,7 +102,7 @@ if ($nodeSizes -eq 'yes') {
 
 $clusterVersion = ReadProperty 'cluster.version' -Prompt "Please choose EMR release" -Optional
 if ($null -eq $clusterVersion) {
-    $clusterVersion = "emr-5.23.0"
+    $clusterVersion = "emr-6.1.0"
 }
 
 $bidPercentage = ReadProperty 'bid.percentage' -Prompt "Please choose bidding SPOT price as a percentage of ON_DEMAND price (or 0 to use ON_DEMAND instances)" -Optional

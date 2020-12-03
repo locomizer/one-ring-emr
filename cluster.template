@@ -250,7 +250,7 @@
                                                 "SizeInGB": {
                                                     "Ref": "CoreVolumeSize"
                                                 },
-                                                "VolumeType": "gp3"
+                                                "VolumeType": "gp2"
                                             },
                                             "VolumesPerInstance": 1
                                         }
@@ -275,7 +275,7 @@
                                                 "SizeInGB": {
                                                     "Ref": "MasterVolumeSize"
                                                 },
-                                                "VolumeType": "gp3"
+                                                "VolumeType": "gp2"
                                             },
                                             "VolumesPerInstance": 1
                                         }
