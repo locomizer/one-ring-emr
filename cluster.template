@@ -28,7 +28,7 @@
         },
         "ClusterVersion": {
             "Description": "EMR Release",
-            "Default": "emr-5.23.0",
+            "Default": "emr-6.1.0",
             "Type": "String"
         },
         "ClusterName": {
@@ -304,8 +304,8 @@
                     {
                         "Classification": "livy-conf",
                         "ConfigurationProperties": {
-                            "livy.spark.master": "yarn-cluster",
-                            "livy.spark.deployMode": "cluster"
+                            "livy.spark.master": "yarn",
+                            "livy.spark.deploy-mode": "cluster"
                         }
                     }
                 ],
